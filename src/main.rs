@@ -56,11 +56,16 @@ impl State {
 	}
 	
 	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) { //TODO
-		
+		if new_size.width > 0 && new_size.height > 0 {
+			self.size = new_size;
+			self.config.width = new_size.width;
+			self.config.height = new_size.height;
+			self.surface.configure(&self.device, &self.config);
+		}
 	}
 	
 	fn input(&mut self, event: &WindowEvent) -> bool {
-		
+		false
 	}
 	
 	fn update(&mut self) {
@@ -68,7 +73,18 @@ impl State {
 	}
 	
 	fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+		let output = self.surface.get_current_texture()?
+		let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+		let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+			label: Some("Render Encoder"),
+		});
 		
+		{
+			let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+				label: Some("Render Pass"),
+				color_attachments: 
+			})
+		}
 	}
 }
 
@@ -77,23 +93,35 @@ fn main(){
 	let event_loop = EventLoop::new();
 	let window = WindowBuilder::new().build(&event_loop).unwrap();
 	
-	event_loop.run(move | event, _, control_flow| match event {
-		Event::WindowEvent {
-			ref event,
-			window_id,
-		} if window_id == window.id() => match event {
-				WindowEvent::CloseRequested
-				| WindowEvent::KeyboardInput {
-					input:
-						KeyboardInput {
-							state: ElementState::Pressed,
-							virtual_keycode: Some(VirtualKeyCode::Escape),
-							..	
-						},
-					..
-				} => *control_flow = ControlFlow::Exit,
-				_ => {}
-			},
-			_ => {}
+	let mut state = pollster::block_on(State::new(&window));
+	
+	event_loop.run(move |event, _, control_flow| {
+		match event {
+		    Event::WindowEvent {
+		        ref event,
+		        window_id,
+		    } if window_id == window.id() => if !state.input(event) { // UPDATED!
+		        match event {
+		            WindowEvent::CloseRequested
+		            | WindowEvent::KeyboardInput {
+		                input:
+		                    KeyboardInput {
+		                        state: ElementState::Pressed,
+		                        virtual_keycode: Some(VirtualKeyCode::Escape),
+		                        ..
+		                    },
+		                ..
+		            } => *control_flow = ControlFlow::Exit,
+		            WindowEvent::Resized(physical_size) => {
+		                state.resize(*physical_size);
+		            }
+		            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+		                state.resize(**new_inner_size);
+		            }
+		            _ => {}
+		        }
+		    }
+		    _ => {}
+		}
 	});
 }
